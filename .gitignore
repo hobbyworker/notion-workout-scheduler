@@ -1,0 +1,14 @@
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# pyenv, autoenv
+.env
+.python-version
+
+# IDE files
+.vscode/
+*.idea/
+
+# Files modified for me
+run.py
