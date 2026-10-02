@@ -1,0 +1,2 @@
+# notion-client 2.6.0 and later removed databases.query (Notion API 2025-09-03, data sources).
+notion-client==2.0.0

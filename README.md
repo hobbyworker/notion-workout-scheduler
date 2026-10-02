@@ -2,6 +2,8 @@
 
 This Python code snippet demonstrates how to use the Notion API to automate the process of creating a workout schedule in a Notion database.
 
+Blog post: [Automating Workout Scheduling with Notion API](https://hobbyworker.me/en/dev/2023-03-14-automating-workout-scheduling-with-notion-api/)
+
 ## **Prerequisites**
 
 Before running this code snippet, you will need the following:
@@ -9,11 +11,15 @@ Before running this code snippet, you will need the following:
 - A Notion account
 - A Notion API key
 - Python 3.x
-- The Notion client library, which can be installed via pip:
+- The Notion client library, pinned in `requirements.txt`:
 
 ```bash
-pip install notion-client
+pip install -r requirements.txt
 ```
+
+The code uses `databases.query`. notion-client 2.6.0 switched to Notion API version 2025-09-03, where databases are queried through data sources, and removed that method. A plain `pip install notion-client` installs a newer version and fails with `AttributeError: 'DatabasesEndpoint' object has no attribute 'query'`, so keep the pinned version.
+
+Last checked on 2026-10-02 with Python 3.11: installs and reaches the Notion API with notion-client 2.0.0.
 
 ## **Usage**
 
@@ -34,4 +40,4 @@ If you don't have a database set up in Notion for your workout schedule, follow 
 
 ## **License**
 
-This code snippet is licensed under the MIT License. See the **License** file for more information.
+This code snippet is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
