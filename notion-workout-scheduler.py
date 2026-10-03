@@ -1,68 +1,93 @@
-#-*- coding: utf-8 -*-
+"""Create a workout schedule in a Notion database.
 
+Uses Notion API version 2025-09-03 (data sources) with notion-client 3.x.
+
+Environment variables:
+  NOTION_TOKEN           Personal access token, or an internal connection's API token
+  NOTION_DATABASE_ID     ID of the database (from the database URL)
+  NOTION_DATA_SOURCE_ID  (optional) ID of the data source to use.
+                         Defaults to the first data source in the database.
+"""
 import os
-import pprint
-from datetime import datetime, timedelta
+from datetime import date, timedelta
+
 from notion_client import Client
+from notion_client.helpers import collect_paginated_api
 
-# authenticate to Notion API
-notion = Client(auth="<API Key>")
+NOTION_VERSION = "2025-09-03"
 
-# set up database details
-database_id = "Database ID"
-
-# set up schedule details
-start_days_ago = 21
-end_days_after = 21
-days_of_week = {
+# Schedule details
+START_DAYS_AGO = 21
+END_DAYS_AFTER = 21
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+DAYS_OF_WEEK = {
     "Monday": {"name": "DAY 1", "tag": ["chest", "triceps"]},
     "Tuesday": {"name": "DAY 2", "tag": ["back", "biceps"]},
     "Wednesday": {"name": "DAY 3", "tag": ["lower body", "shoulder"]},
     "Thursday": {"name": "DAY 1", "tag": ["chest", "triceps"]},
     "Friday": {"name": "DAY 2", "tag": ["back", "biceps"]},
     "Saturday": {"name": "DAY 3", "tag": ["lower body", "shoulder"]},
+    # Sunday is a rest day.
 }
 
-# get today's date
-today = datetime.now().strftime("%Y-%m-%d")
 
-# get start and end dates for schedule
-start_date = (datetime.now() - timedelta(days=start_days_ago)).strftime("%Y-%m-%d")
-end_date = (datetime.now() + timedelta(days=end_days_after)).strftime("%Y-%m-%d")
+def get_data_source_id(notion, database_id):
+    """Return the data source to write to. A database can hold several data sources."""
+    data_source_id = os.environ.get("NOTION_DATA_SOURCE_ID")
+    if data_source_id:
+        return data_source_id
+    database = notion.databases.retrieve(database_id=database_id)
+    return database["data_sources"][0]["id"]
 
-# query the database for existing events within the schedule date range
-existing_events = notion.databases.query(
-    **{
-        "database_id": database_id,
-        "filter": {
+
+def get_existing_dates(notion, data_source_id, start, end):
+    """Return the dates that already have an event between start and end."""
+    pages = collect_paginated_api(
+        notion.data_sources.query,
+        data_source_id=data_source_id,
+        filter={
             "and": [
-                {"property": "Date", "date": {"on_or_after": start_date}},
-                {"property": "Date", "date": {"on_or_before": end_date}},
+                {"property": "Date", "date": {"on_or_after": start.isoformat()}},
+                {"property": "Date", "date": {"on_or_before": end.isoformat()}},
             ]
         },
-    }
-).get("results")
+    )
+    dates = set()
+    for page in pages:
+        value = page["properties"]["Date"]["date"]
+        if value:
+            dates.add(value["start"][:10])  # "2026-10-05" or "2026-10-05T09:00:00.000+09:00"
+    return dates
 
-# create new events for each day of the week within the schedule date range
-for date in (datetime.now() + timedelta(days=n) for n in range(-start_days_ago, end_days_after + 1)):
-    # skip Sundays
-    if date.strftime("%A") == "Sunday":
-        continue
 
-    # check if event already exists on this date
-    if any(event.get("properties").get("Date").get("date").get("start") == date.strftime("%Y-%m-%d") for event in existing_events):
-        print(f"Event already exists for {date.strftime('%Y-%m-%d')}. Skipping.")
-        continue
+def main():
+    notion = Client(auth=os.environ["NOTION_TOKEN"], notion_version=NOTION_VERSION)
+    data_source_id = get_data_source_id(notion, os.environ["NOTION_DATABASE_ID"])
 
-    # create new event for this date
-    day_of_week = date.strftime("%A")
-    event_name = days_of_week[day_of_week]["name"]
-    event_tag = days_of_week[day_of_week]["tag"]
-    new_event = {
-        "Name": {"title": [{"text": {"content": event_name}}]},
-        "Date": {"date": {"start": date.strftime("%Y-%m-%d")}},
-        "Tag": {"multi_select": [{"name": tag} for tag in event_tag]},
-    }
-    notion.pages.create(parent={"database_id": database_id}, properties=new_event)
-    print(f"Created event for {date.strftime('%Y-%m-%d')} - {event_name} ({', '.join(event_tag)})")
+    today = date.today()
+    start = today - timedelta(days=START_DAYS_AGO)
+    end = today + timedelta(days=END_DAYS_AFTER)
+    existing_dates = get_existing_dates(notion, data_source_id, start, end)
 
+    for offset in range(-START_DAYS_AGO, END_DAYS_AFTER + 1):
+        day = today + timedelta(days=offset)
+        plan = DAYS_OF_WEEK.get(WEEKDAY_NAMES[day.weekday()])
+        if plan is None:
+            continue
+        if day.isoformat() in existing_dates:
+            print(f"Event already exists for {day}. Skipping.")
+            continue
+
+        notion.pages.create(
+            parent={"type": "data_source_id", "data_source_id": data_source_id},
+            properties={
+                "Name": {"title": [{"text": {"content": plan["name"]}}]},
+                "Date": {"date": {"start": day.isoformat()}},
+                "Tag": {"multi_select": [{"name": tag} for tag in plan["tag"]]},
+            },
+        )
+        print(f"Created event for {day} - {plan['name']} ({', '.join(plan['tag'])})")
+
+
+if __name__ == "__main__":
+    main()
