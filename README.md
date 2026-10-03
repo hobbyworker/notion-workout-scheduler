@@ -4,7 +4,7 @@ This Python script uses the Notion API to create a workout schedule in a Notion 
 
 ## **Blog posts**
 
-- 2026 (current code): [Automating Workout Scheduling with Notion API (2026)](https://hobbyworker.me/en/dev/2026-10-06-automating-workout-scheduling-with-notion-api-2026/) (published on 2026-10-06)
+- 2026 (current code): [Automating Workout Scheduling with Notion API (2026)](https://hobbyworker.me/en/dev/2026-10-08-automating-workout-scheduling-with-notion-api-2026/) (published on 2026-10-08)
 - 2023 (code at the [`v2023`](https://github.com/hobbyworker/notion-workout-scheduler/tree/v2023) tag): [Automating Workout Scheduling with Notion API](https://hobbyworker.me/en/dev/2023-03-14-automating-workout-scheduling-with-notion-api/)
 
 ## **Versions**
